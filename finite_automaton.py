@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 
 
-class FiniteAutomaton(ABC):
+class FA(ABC):
     """
     Abstract base class extended by all automaton classes.
 
@@ -54,14 +54,14 @@ class FiniteAutomaton(ABC):
         self.start_state = start_state
         self.accepting_states = accepting_states if accepting_states is not None else set()
 
-        super(FiniteAutomaton, self).__init__()
+        super(FA, self).__init__()
 
     @abstractmethod
     def accepts(self, input_str):
         pass
 
 
-class DeterministicFiniteAutomaton(FiniteAutomaton):
+class DFA(FA):
     """
     Implementation of a deterministic finite automaton (DFA).
 
@@ -86,7 +86,7 @@ class DeterministicFiniteAutomaton(FiniteAutomaton):
         return current_state in self.accepting_states
 
 
-class NondeterministicFiniteAutomaton(FiniteAutomaton):
+class NFA(FA):
     """
     Implementation of a non-deterministic finite automaton (NFA).
 
@@ -117,6 +117,7 @@ class NondeterministicFiniteAutomaton(FiniteAutomaton):
     accepts(input_str)
         Check whether the automaton accepts the provided input string.
     """
+
     def __init__(self,
                  states=None,
                  alphabet=None,
@@ -125,6 +126,35 @@ class NondeterministicFiniteAutomaton(FiniteAutomaton):
                  accepting_states=None):
         super().__init__(states, alphabet, transition_mappings, start_state, accepting_states)
         self.epsilon_closures = self.__create_epsilon_closures(states)
+
+    @classmethod
+    def from_symbol(cls, s):
+        return cls(states={"s0", "s1"}, alphabet=set(s), transition_mappings={"s0": {s: {"s1"}}}, start_state="s0",
+                   accepting_states={"s1"})
+
+    @classmethod
+    def from_union(cls, first, second):
+        return cls(states={"s0", "s1", "s2", "s3", "s4", "s5"}, )
+
+    @classmethod
+    def from_concatenation(cls, first: "NFA", second: "NFA"):
+        # s0 -a-> s1
+        # s0 -b-> s1
+
+
+        first_symbol, second_symbol = tuple(
+            [s for s in list(first.transition_mappings["s0"].keys()) + list(second.transition_mappings["s0"].keys())])
+
+        return cls(states={"s0", "s1", "s2", "s3"}, alphabet=first.alphabet.union(second.alphabet),
+                   transition_mappings={"s0": {first_symbol: {"s1"}},
+                                        "s1": {"": {"s2"}},
+                                        "s2": {second_symbol: {"s3"}}},
+                   start_state="s0",
+                   accepting_states={"s3"})
+
+    @classmethod
+    def from_kleene_closure(cls, nfa):
+        pass
 
     def accepts(self, input_str):
         current_states = {self.start_state}
