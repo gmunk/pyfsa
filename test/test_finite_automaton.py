@@ -30,7 +30,7 @@ class TestDeterministicFiniteAutomaton(TestFiniteAutomaton):
         self.fa = DFA(states={"s0", "s1", "s2", "s3", "s4", "s5"},
                       alphabet={"n", "e", "w", "o", "t"},
                       transition_mappings={"s0": {"n": "s1"}, "s1": {"e": "s2", "o": "s4"},
-                                                                    "s2": {"w": "s3"}, "s4": {"t": "s5"}},
+                                           "s2": {"w": "s3"}, "s4": {"t": "s5"}},
                       start_state="s0",
                       accepting_states={"s3", "s5"})
         self.valid_words = ["new", "not"]
@@ -44,8 +44,8 @@ class TestNondeterministicFiniteAutomaton(TestFiniteAutomaton):
         self.fa = NFA(states={"s0", "s1", "s2", "s3"},
                       alphabet={"a", "b"},
                       transition_mappings={"s0": {"a": {"s0"}, "": {"s1"}},
-                                                                       "s1": {"a": {"s2"}},
-                                                                       "s2": {"b": {"s3"}}},
+                                           "s1": {"a": {"s2"}},
+                                           "s2": {"b": {"s3"}}},
                       start_state="s0",
                       accepting_states={"s3"})
         self.valid_words = ["ab", "aab"]

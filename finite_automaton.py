@@ -1,6 +1,12 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
+TransitionMappings = dict[int, dict[int, set[int]]]
+
+
+def reorder_transition_mappings(tm: TransitionMappings, i: int) -> TransitionMappings:
+    return {k + i: {kk: {vv.pop() + i}} for k, v in tm.items() for kk, vv in tm[k].items()}
+
 
 class FA(ABC):
     """
@@ -15,7 +21,7 @@ class FA(ABC):
     transition_mappings : dict
         The mappings of the automaton, this abstraction serves as the transition function in the formal mathematical
         definition of a finite automaton.
-    start_state : str
+    start_state : int
         The designated start state.
     accepting_states : set
         Set of accepting states.
@@ -42,7 +48,7 @@ class FA(ABC):
             A set describing the alphabet accepted by this automaton.
         transition_mappings : dict
             A dictionary describing the transitions the automaton takes based on the input it receives.
-        start_state : str
+        start_state : int
             The starting state for the automaton.
         accepting_states: set
             A set of accepting states, if the automaton finishes its work in one of them,
@@ -102,7 +108,7 @@ class NFA(FA):
         A set describing the alphabet accepted by this automaton.
     transition_mappings : dict
         A dictionary describing the transitions the automaton takes based on the input it receives.
-    start_state : str
+    start_state : int
         The starting state for the automaton.
     accepting_states: set
         A set of accepting states, if the automaton finishes its work in one of them,
@@ -129,28 +135,45 @@ class NFA(FA):
 
     @classmethod
     def from_symbol(cls, s):
-        return cls(states={"s0", "s1"}, alphabet=set(s), transition_mappings={"s0": {s: {"s1"}}}, start_state="s0",
-                   accepting_states={"s1"})
+        return cls(states={0, 1}, alphabet=set(s), transition_mappings={0: {s: {1}}}, start_state=0,
+                   accepting_states={1})
 
     @classmethod
-    def from_union(cls, first, second):
-        return cls(states={"s0", "s1", "s2", "s3", "s4", "s5"}, )
+    def from_union(cls, first: "NFA", second: "NFA") -> "NFA":
+        first_num_states = len(first.states)
+        second_num_states = len(second.states)
+
+        states = {i for i in range(first_num_states + second_num_states)}
+
+        alphabet = first.alphabet.union(second.alphabet)
+
+        transition_mappings = {0: {-1: {first.start_state + 1, second.start_state + first_num_states + 1}},
+                               first.accepting_states.pop() + 1: {-1: {first_num_states + second_num_states + 1}},
+                               second.accepting_states.pop() + first_num_states + 1: {
+                                   -1: {first_num_states + second_num_states + 1}}}
+
+        transition_mappings.update(reorder_transition_mappings(first.transition_mappings, 1))
+        transition_mappings.update(reorder_transition_mappings(second.transition_mappings, first_num_states + 1))
+
+        return cls(states=states, alphabet=alphabet, transition_mappings=transition_mappings, start_state=0,
+                   accepting_states={first_num_states + second_num_states + 1})
 
     @classmethod
-    def from_concatenation(cls, first: "NFA", second: "NFA"):
-        # s0 -a-> s1
-        # s0 -b-> s1
+    def from_concatenation(cls, first: "NFA", second: "NFA") -> "NFA":
+        first_num_states = len(first.states)
 
+        states = {s + first_num_states for s in second.states}.union(first.states)
 
-        first_symbol, second_symbol = tuple(
-            [s for s in list(first.transition_mappings["s0"].keys()) + list(second.transition_mappings["s0"].keys())])
+        alphabet = first.alphabet.union(second.alphabet)
 
-        return cls(states={"s0", "s1", "s2", "s3"}, alphabet=first.alphabet.union(second.alphabet),
-                   transition_mappings={"s0": {first_symbol: {"s1"}},
-                                        "s1": {"": {"s2"}},
-                                        "s2": {second_symbol: {"s3"}}},
-                   start_state="s0",
-                   accepting_states={"s3"})
+        transition_mappings = {first.accepting_states.pop(): {-1: {second.start_state + first_num_states}}}
+        transition_mappings.update(first.transition_mappings)
+        transition_mappings.update(reorder_transition_mappings(second.transition_mappings, first_num_states))
+
+        accepting_states = {second.accepting_states.pop() + first_num_states}
+
+        return cls(states=states, alphabet=alphabet, transition_mappings=transition_mappings,
+                   start_state=first.start_state, accepting_states=accepting_states)
 
     @classmethod
     def from_kleene_closure(cls, nfa):
@@ -163,7 +186,7 @@ class NFA(FA):
             current_states = {s for cs in current_states for ecs in self.epsilon_closures[cs] for s in
                               self.transition_mappings.get(ecs, {}).get(i, {})}
 
-        return not current_states.isdisjoint(self.accepting_states)
+        return current_states.issubset(self.accepting_states)
 
     def __create_epsilon_closures(self, states):
         epsilon_predecessors = self.__create_epsilon_predecessors()
@@ -187,8 +210,8 @@ class NFA(FA):
         epsilon_predecessors = defaultdict(set)
 
         for k, v in self.transition_mappings.items():
-            if "" in v:
-                for s in v[""]:
+            if -1 in v:
+                for s in v[-1]:
                     epsilon_predecessors[s].add(k)
 
         return epsilon_predecessors
