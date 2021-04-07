@@ -1,0 +1,38 @@
+{
+  "states": [
+    "s0",
+    "s1",
+    "s2",
+    "s3"
+  ],
+  "alphabet": [
+    "a",
+    "b"
+  ],
+  "initial_state": "s0",
+  "accepting_states": [
+    "s3"
+  ],
+  "transitions": [
+    {
+      "from": "s0",
+      "to": "s0",
+      "symbol": "a"
+    },
+    {
+      "from": "s0",
+      "to": "s1",
+      "symbol": "EPS"
+    },
+    {
+      "from": "s1",
+      "to": "s2",
+      "symbol": "a"
+    },
+    {
+      "from": "s2",
+      "to": "s3",
+      "symbol": "b"
+    }
+  ]
+}
