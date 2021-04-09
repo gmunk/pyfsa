@@ -2,15 +2,33 @@ import itertools
 import json
 from pathlib import Path
 from collections import defaultdict
-from typing import Optional
+from typing import Optional, DefaultDict
 
-Transitions = Optional[defaultdict[str, set["State"]]]
+Transitions = Optional[DefaultDict[str, set["State"]]]
 EpsilonTransitions = Optional[list["State"]]
 
 EPSILON_TRANSITION_TOKEN = "EPS"
 
 
 class State:
+    """A representation of a state in a finite automaton.
+
+    For the purposes of this project a state is comprised of a label,
+    a dictionary of the possible, outward transitions,
+    and a list of the possible, outward epsilon transitions. This helps when the basic NFAs of
+    Thompson's construction are created, the whole process reduces to setting pointers to initial and accepting states
+    plus addition of epsilon transitions, where necessary.
+
+    Attributes
+    ----------
+    label : str
+        Label of this state.
+    transitions : DefaultDict[str, set[State]]
+        Outward transitions of this note, a set of states for each character which has a transition.
+    epsilon_transitions : list[State]
+        Outward epsilon transitions of this node.
+
+    """
     def __init__(self, label: str, transitions: Transitions = None,
                  epsilon_transitions: EpsilonTransitions = None) -> None:
         self.label = label
@@ -22,15 +40,49 @@ class State:
             label=self.label, transitions=self.transitions, epsilon_transitions=self.epsilon_transitions)
 
     def add_transition(self, symbol: str, state: "State") -> None:
+        """Adds one transition to the dict of outward transitions.
+
+        Parameters
+        ----------
+        symbol : str
+            Symbol which the new transition is going to be performed on.
+        state : State
+            State which the new transitions is pointing to.
+
+        """
         self.transitions[symbol].add(state)
 
     def add_epsilon_transition(self, state: "State") -> None:
+        """Adds one epsilon transition to the list of epsilon transitions.
+
+        Parameters
+        ----------
+        state : State
+            State which the new epsilon transitions is pointing to.
+
+        """
         self.epsilon_transitions.append(state)
 
     def add_epsilon_transitions(self, states: list["State"]) -> None:
+        """Adds multiple epsilon transitions to the list of epsilon transitions.
+
+        Parameters
+        ----------
+        states : list["State"]
+            List of states of new epsilon transitions.
+
+        """
         self.epsilon_transitions.extend(states)
 
     def get_epsilon_closure(self) -> set["State"]:
+        """Creates a set of all the states (including this one),
+        reachable from this state, by following epsilon transitions.
+
+        Returns
+        -------
+        set[State]
+            Set of states reached by following epsilon transitions. This state is also included.
+        """
         return {self, *self.epsilon_transitions,
                 *list(itertools.chain(*[e.get_epsilon_closure() for e in self.epsilon_transitions]))}
 
@@ -82,49 +134,3 @@ class NFA:
 
     def __create_epsilon_closures(self):
         return {s.label: s.get_epsilon_closure() for s in self.states}
-
-
-def build_symbol_nfa(s: str) -> NFA:
-    initial, accepting = State("initial_{symbol}".format(symbol=s)), State("accepting_{symbol}".format(symbol=s))
-
-    initial.add_transition(s, accepting)
-
-    return NFA(states={initial, accepting}, alphabet={s}, initial_state=initial, accepting_states={accepting})
-
-
-def build_concatenation_nfa(first: NFA, second: NFA) -> NFA:
-    for s in first.accepting_states:
-        s.add_epsilon_transition(second.initial_state)
-
-    return NFA(states=first.states.union(second.states),
-               alphabet=first.alphabet.union(second.alphabet),
-               initial_state=first.initial_state,
-               accepting_states=second.accepting_states)
-
-
-def build_union_nfa(first: NFA, second: NFA) -> NFA:
-    initial, accepting = State("initial_union",
-                               epsilon_transitions=[first.initial_state, second.initial_state]), \
-                         State("accepting_union")
-
-    for sf, ss in zip(first.accepting_states, second.accepting_states):
-        sf.add_epsilon_transition(accepting)
-        ss.add_epsilon_transition(accepting)
-
-    return NFA(states=first.states.union(second.states).union({initial, accepting}),
-               alphabet=first.alphabet.union(second.alphabet),
-               initial_state=initial,
-               accepting_states={accepting})
-
-
-def build_closure_nfa(source: NFA) -> NFA:
-    accepting = State("accepting_closure")
-    initial = State("initial_closure", epsilon_transitions=[source.initial_state, accepting])
-
-    for s in source.accepting_states:
-        s.add_epsilon_transitions([source.initial_state, accepting])
-
-    return NFA(states=source.states.union({initial, accepting}),
-               alphabet=source.alphabet,
-               initial_state=initial,
-               accepting_states={accepting})
